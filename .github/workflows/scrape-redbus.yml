@@ -1,0 +1,55 @@
+name: BusLens RedBus
+
+on:
+
+  workflow_dispatch:
+
+jobs:
+
+  scrape:
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 15
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+
+        with:
+
+          node-version: 20
+
+      - name: Install dependencies
+
+        run: npm ci
+
+      - name: Install Chromium
+
+        run: npx playwright install chromium
+
+      - name: Install Playwright Linux dependencies
+
+        run: npx playwright install-deps chromium
+
+      - name: Run scraper
+
+        run: npx tsx scripts/github-redbus.ts
+
+      - uses: actions/upload-artifact@v4
+
+        if: always()
+
+        with:
+
+          name: redbus-output
+
+          path: |
+
+            output/
+
+            logs/
+
+            debug/
