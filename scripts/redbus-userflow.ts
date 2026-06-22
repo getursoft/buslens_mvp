@@ -1,5 +1,4 @@
 import { chromium } from 'playwright';
-import fs from 'fs';
 
 async function run() {
 
@@ -10,9 +9,6 @@ async function run() {
   const page = await browser.newPage();
 
   try {
-
-    const source = 'Delhi';
-    const destination = 'Jaipur';
 
     await page.goto(
       'https://www.redbus.in',
@@ -26,31 +22,33 @@ async function run() {
 
     // FROM
 
-    await page.locator('div').filter({
-      hasText: /^From$/
-    }).nth(1).click();
+    await page.locator('div')
+      .filter({ hasText: /^From$/ })
+      .nth(1)
+      .click();
 
-    await page.getByText(source).nth(1).click();
+    await page.getByRole(
+      'heading',
+      { name: 'Kashmiri Gate' }
+    ).click();
+
+    console.log('From selected');
 
     // TO
 
     await page.getByRole(
       'heading',
-      {
-        name: `${destination} (Rajasthan)`
-      }
+      { name: 'Jaipur (Rajasthan)' }
     ).click();
+
+    console.log('To selected');
 
     // DATE
 
     await page.getByRole(
       'combobox',
-      {
-        name: 'Select Date of Journey.'
-      }
+      { name: 'Select Date of Journey.' }
     ).click();
-
-    // Tomorrow
 
     const tomorrow = new Date();
 
@@ -64,6 +62,8 @@ async function run() {
       `button[aria-label*="${day}"]`
     ).first().click();
 
+    console.log('Date selected');
+
     // SEARCH
 
     await page.getByRole(
@@ -73,7 +73,7 @@ async function run() {
       }
     ).click();
 
-    console.log('Search submitted');
+    console.log('Search clicked');
 
     // Wait results
 
@@ -81,54 +81,13 @@ async function run() {
       10000
     );
 
-    // Screenshot
-
     await page.screenshot({
-
       path: 'results.png',
-
       fullPage: true
-
     });
-
-    // Extract first 5 buses
-
-    const buses = await page.evaluate(() => {
-
-      const rows = document.querySelectorAll(
-        '.bus-item,.row-sec'
-      );
-
-      return Array.from(rows)
-        .slice(0,5)
-        .map((x:any) => ({
-
-          text: x.innerText
-
-        }));
-
-    });
-
-    console.log(buses);
-
-    fs.writeFileSync(
-
-      'redbus-output.json',
-
-      JSON.stringify(
-
-        buses,
-
-        null,
-
-        2
-
-      )
-
-    );
 
     console.log(
-      'Completed'
+      'Results page loaded'
     );
 
   }
@@ -140,7 +99,7 @@ async function run() {
   }
 
   await page.waitForTimeout(
-    5000
+    10000
   );
 
   await browser.close();
