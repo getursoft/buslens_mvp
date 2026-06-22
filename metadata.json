@@ -1,0 +1,6 @@
+{
+  "name": "BusLens",
+  "description": "Premium bus ticket price comparison platform. Compare fares, ratings, and travel times across RedBus, AbhiBus, Paytm, UPSRTC and more.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

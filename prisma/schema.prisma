@@ -1,0 +1,467 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------------------------------------------
+// 1. USERS TABLE - Stores registered platform users
+// ---------------------------------------------
+model User {
+  id             String           @id @default(uuid()) @db.Uuid
+  fullName       String           @map("full_name") @db.VarChar(120)
+  email          String           @unique @db.VarChar(255)
+  phone          String?          @db.VarChar(20)
+  passwordHash   String           @map("password_hash") @db.Text
+  profileImage   String?          @map("profile_image") @db.Text
+  isVerified     Boolean          @default(false) @map("is_verified")
+  role           String           @default("user") @db.VarChar(20)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  // Relationships
+  searchHistories SearchHistory[]
+  reviews         Review[]
+  priceAlerts     PriceAlert[]
+  favoriteRoutes  FavoriteRoute[]
+  bookingClicks   BookingClick[]
+
+  @@index([email])
+  @@index([phone])
+  @@map("users")
+}
+
+// ---------------------------------------------
+// 2. SEARCH_HISTORY TABLE - Analytics on travel queries
+// ---------------------------------------------
+model SearchHistory {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String?  @map("user_id") @db.Uuid
+  sourceCity      String   @map("source_city") @db.VarChar(100)
+  destinationCity String   @map("destination_city") @db.VarChar(100)
+  travelDate      DateTime @map("travel_date") @db.Date
+  passengers      Int      @default(1)
+  searchedAt      DateTime @default(now()) @map("searched_at")
+
+  // Relationships
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sourceCity, destinationCity])
+  @@map("search_history")
+}
+
+// ---------------------------------------------
+// 3. BUS_OPERATORS TABLE - Information about bus fleets
+// ---------------------------------------------
+model BusOperator {
+  id            String   @id @default(uuid()) @db.Uuid
+  operatorName  String   @map("operator_name") @db.VarChar(150)
+  operatorLogo  String?  @map("operator_logo") @db.Text
+  rating        Decimal  @default(4.0) @db.Decimal(2, 1)
+  totalReviews  Int      @default(0) @map("total_reviews")
+  supportNumber String?  @map("support_number") @db.VarChar(20)
+  isVerified    Boolean  @default(false) @map("is_verified")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  busListings   BusListing[]
+  reviews       Review[]
+
+  @@index([operatorName])
+  @@map("bus_operators")
+}
+
+// ---------------------------------------------
+// 4. PLATFORMS TABLE - Online ticket portals in search engine
+// ---------------------------------------------
+model Platform {
+  id            String   @id @default(uuid()) @db.Uuid
+  platformName  String   @map("platform_name") @db.VarChar(100)
+  websiteUrl    String   @map("website_url") @db.Text
+  logoUrl       String?  @map("logo_url") @db.Text
+  affiliateCode String?  @map("affiliate_code") @db.Text
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  busListings   BusListing[]
+  coupons       Coupon[]
+  bookingClicks BookingClick[]
+  scraperLogs   ScraperLog[]
+
+  @@map("platforms")
+}
+
+// ---------------------------------------------
+// 5. ROUTES TABLE - Standard geographic routing entries
+// ---------------------------------------------
+model Route {
+  id              String   @id @default(uuid()) @db.Uuid
+  sourceCity      String   @map("source_city") @db.VarChar(100)
+  destinationCity String   @map("destination_city") @db.VarChar(100)
+  distanceKm      Int      @map("distance_km")
+  averageDuration Int      @map("average_duration") // In minutes
+  popularRoute    Boolean  @default(false) @map("popular_route")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  busListings    BusListing[]
+  favoriteRoutes FavoriteRoute[]
+  routePriceHistories RoutePriceHistory[]
+
+  @@index([sourceCity, destinationCity])
+  @@map("routes")
+}
+
+// ---------------------------------------------
+// 6. BUS_LISTINGS TABLE - Main aggregate ticket listings core
+// ---------------------------------------------
+model BusListing {
+  id                  String       @id @default(uuid()) @db.Uuid
+  routeId             String       @map("route_id") @db.Uuid
+  operatorId          String       @map("operator_id") @db.Uuid
+  platformId          String       @map("platform_id") @db.Uuid
+  
+  busName             String       @map("bus_name") @db.VarChar(150)
+  busType             String       @map("bus_type") @db.VarChar(100)
+  
+  departureTime       DateTime     @map("departure_time")
+  arrivalTime         DateTime     @map("arrival_time")
+  durationMinutes     Int          @map("duration_minutes")
+  
+  boardingPoint       String       @map("boarding_point") @db.VarChar(255)
+  droppingPoint       String       @map("dropping_point") @db.VarChar(255)
+  
+  originalPrice       Decimal      @map("original_price") @db.Decimal(10, 2)
+  discountedPrice     Decimal      @map("discounted_price") @db.Decimal(10, 2)
+  taxes               Decimal      @map("taxes") @db.Decimal(10, 2)
+  finalPrice          Decimal      @map("final_price") @db.Decimal(10, 2)
+  
+  availableSeats      Int          @default(0) @map("available_seats")
+  windowSeats         Int          @default(0) @map("window_seats")
+  
+  rating              Decimal      @default(4.0) @db.Decimal(2, 1)
+  reviewsCount        Int          @default(0) @map("reviews_count")
+  
+  liveTracking        Boolean      @default(false) @map("live_tracking")
+  chargingPort        Boolean      @default(false) @map("charging_port")
+  blanket             Boolean      @default(false)
+  waterBottle         Boolean      @default(false) @map("water_bottle")
+  wifi                Boolean      @default(false)
+  
+  platformRedirectUrl String       @map("platform_redirect_url") @db.Text
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+
+  // Relationships
+  route               Route        @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  operator            BusOperator  @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  platform            Platform     @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  
+  priceHistories      PriceHistory[]
+  bookingClicks       BookingClick[]
+
+  @@index([routeId])
+  @@index([operatorId])
+  @@index([platformId])
+  @@index([departureTime])
+  @@index([finalPrice])
+  @@map("bus_listings")
+}
+
+// ---------------------------------------------
+// 7. COUPONS TABLE - Discounts details per booking portal
+// ---------------------------------------------
+model Coupon {
+  id             String   @id @default(uuid()) @db.Uuid
+  platformId     String   @map("platform_id") @db.Uuid
+  couponCode     String   @map("coupon_code") @db.VarChar(50)
+  description    String   @db.Text
+  discountType   String   @map("discount_type") @db.VarChar(20) // "Percentage" | "Fixed"
+  discountValue  Decimal  @map("discount_value") @db.Decimal(10, 2)
+  minimumBooking Decimal  @map("minimum_booking") @db.Decimal(10, 2)
+  validFrom      DateTime @map("valid_from")
+  validTill      DateTime @map("valid_till")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  platform       Platform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@index([couponCode])
+  @@index([platformId])
+  @@map("coupons")
+}
+
+// ---------------------------------------------
+// 8. PRICE_HISTORY TABLE - Trends analysis tracking
+// ---------------------------------------------
+model PriceHistory {
+  id           String     @id @default(uuid()) @db.Uuid
+  busListingId String     @map("bus_listing_id") @db.Uuid
+  price        Decimal    @db.Decimal(10, 2)
+  trackedAt    DateTime   @default(now()) @map("tracked_at")
+
+  // Relationships
+  busListing   BusListing @relation(fields: [busListingId], references: [id], onDelete: Cascade)
+
+  @@index([busListingId])
+  @@index([trackedAt])
+  @@map("price_history")
+}
+
+// ---------------------------------------------
+// 8.5. ROUTE_PRICE_HISTORY TABLE - Stores aggregated daily price snapshots for routes
+// ---------------------------------------------
+model RoutePriceHistory {
+  id              String   @id @default(uuid()) @db.Uuid
+  routeId         String   @map("route_id") @db.Uuid
+  minPrice        Decimal  @map("min_price") @db.Decimal(10, 2)
+  maxPrice        Decimal  @map("max_price") @db.Decimal(10, 2)
+  avgPrice        Decimal  @map("avg_price") @db.Decimal(10, 2)
+  recordedDate    DateTime @map("recorded_date") @db.Date // Stores snapshot day
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  route           Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@unique([routeId, recordedDate])
+  @@index([routeId])
+  @@index([recordedDate])
+  @@map("route_price_history")
+}
+
+// ---------------------------------------------
+// 9. PRICE_ALERTS TABLE - Customized price trackers
+// ---------------------------------------------
+model PriceAlert {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String?  @map("user_id") @db.Uuid
+  sourceCity       String   @map("source_city") @db.VarChar(100)
+  destinationCity  String   @map("destination_city") @db.VarChar(100)
+  targetPrice      Decimal  @map("target_price") @db.Decimal(10, 2)
+  travelDate       DateTime @map("travel_date") @db.Date
+  notificationSent Boolean  @default(false) @map("notification_sent")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  user             User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sourceCity, destinationCity])
+  @@map("price_alerts")
+}
+
+// ---------------------------------------------
+// 10. FAVORITE_ROUTES TABLE - Bookmark standard routes
+// ---------------------------------------------
+model FavoriteRoute {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  routeId   String   @map("route_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  route     Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([routeId])
+  @@map("favorite_routes")
+}
+
+// ---------------------------------------------
+// 11. REVIEWS TABLE - Safety, cleanliness and comfort ratings
+// ---------------------------------------------
+model Review {
+  id               String      @id @default(uuid()) @db.Uuid
+  userId           String      @map("user_id") @db.Uuid
+  operatorId       String      @map("operator_id") @db.Uuid
+  rating           Decimal     @db.Decimal(2, 1)
+  reviewText       String      @map("review_text") @db.Text
+  cleanlinessScore Int         @map("cleanliness_score") // 1 to 5
+  punctualityScore Int         @map("punctuality_score")
+  comfortScore     Int         @map("comfort_score")
+  safetyScore      Int         @map("safety_score")
+  createdAt        DateTime    @default(now()) @map("created_at")
+
+  // Relationships
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  operator         BusOperator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([operatorId])
+  @@index([userId])
+  @@map("reviews")
+}
+
+// ---------------------------------------------
+// 12. BOOKING_CLICKS TABLE - Affiliate redirect analytical logs
+// ---------------------------------------------
+model BookingClick {
+  id           String     @id @default(uuid()) @db.Uuid
+  userId       String?    @map("user_id") @db.Uuid
+  busListingId String     @map("bus_listing_id") @db.Uuid
+  platformId   String     @map("platform_id") @db.Uuid
+  clickedAt    DateTime   @default(now()) @map("clicked_at")
+  ipAddress    String?    @map("ip_address") @db.VarChar(100)
+  deviceType   String?    @map("device_type") @db.VarChar(50)
+
+  // Relationships
+  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  busListing   BusListing @relation(fields: [busListingId], references: [id], onDelete: Cascade)
+  platform     Platform   @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@index([busListingId])
+  @@index([platformId])
+  @@map("booking_clicks")
+}
+
+// ---------------------------------------------
+// 13. ADMIN_USERS TABLE - Backend platform security
+// ---------------------------------------------
+model AdminUser {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(120)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.Text
+  role         String   @db.VarChar(50)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("admin_users")
+}
+
+// ---------------------------------------------
+// 14. SCRAPER_LOGS TABLE - Cron logs on data refresh
+// ---------------------------------------------
+model ScraperLog {
+  id             String    @id @default(uuid()) @db.Uuid
+  platformId     String    @map("platform_id") @db.Uuid
+  status         String    @db.VarChar(50) // SUCCESS, FAILED
+  recordsFetched Int       @default(0) @map("records_fetched")
+  errorMessage   String?   @map("error_message") @db.Text
+  startedAt      DateTime  @map("started_at")
+  completedAt    DateTime  @map("completed_at")
+
+  // Relationships
+  platform       Platform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@map("scraper_logs")
+}
+
+// ---------------------------------------------
+// 15. SEO_PAGES TABLE - Curated dynamic travel guidelines
+// ---------------------------------------------
+model SeoPage {
+  id              String   @id @default(uuid()) @db.Uuid
+  slug            String   @unique @db.VarChar(255)
+  sourceCity      String   @map("source_city") @db.VarChar(100)
+  destinationCity String   @map("destination_city") @db.VarChar(100)
+  title           String   @db.VarChar(255)
+  metaDescription String   @map("meta_description") @db.Text
+  distanceKm      Int      @map("distance_km")
+  averageDuration String   @map("average_duration") @db.VarChar(50)
+  lowestPrice     Decimal  @map("lowest_price") @db.Decimal(10, 2)
+  averagePrice    Decimal  @map("average_price") @db.Decimal(10, 2)
+  totalOperators  Int      @map("total_operators")
+  busTypes        String   @map("bus_types") @db.Text
+  boardingPoints  String[] @map("boarding_points")
+  droppingPoints  String[] @map("dropping_points")
+  faqsJson        Json     @map("faqs_json") // Storing [{q, a}]
+  reviewsJson     Json     @map("reviews_json") // Storing [{user, rating, comment}]
+  insights        String   @db.Text
+  similarRoutes   Json     @map("similar_routes") // Storing [{name, slug}]
+  priceTrends     Json     @map("price_trends") // Storing [{day, price}]
+  topOperators    Json     @map("top_operators") // Storing [{name, rating, minPrice}]
+  pageViews       Int      @default(0) @map("page_views")
+  lastGeneratedAt DateTime @default(now()) @map("last_generated_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([slug])
+  @@index([sourceCity, destinationCity])
+  @@map("seo_pages")
+}
+
+// ---------------------------------------------
+// 16. SAAS_ANALYTICS TABLE - Core SaaS business intelligence
+// ---------------------------------------------
+model SaaSAnalytics {
+  id               String   @id @default(uuid()) @db.Uuid
+  recordedDate     DateTime @unique @map("recorded_date") @db.Date // Aggregated day
+  totalSearches    Int      @default(0) @map("total_searches")
+  totalClicks      Int      @default(0) @map("total_clicks")
+  revenueGenerated Decimal  @default(0.0) @map("revenue_generated") @db.Decimal(12, 2) // Affiliate commissions earned
+  activeUsers      Int      @default(0) @map("active_users")
+  conversionRate   Decimal  @default(0.0) @map("conversion_rate") @db.Decimal(5, 2)
+  cacheHitRatio    Decimal  @default(0.0) @map("cache_hit_ratio") @db.Decimal(5, 2)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([recordedDate])
+  @@map("saas_analytics")
+}
+
+// ---------------------------------------------
+// 17. SEARCH_CACHE TABLE - Playwright query caching
+// ---------------------------------------------
+model SearchCache {
+  id           String   @id @default(uuid()) @db.Uuid
+  routeKey     String   @map("route_key") @db.VarChar(255)
+  journeyDate  DateTime @map("journey_date") @db.Date
+  responseJson Json     @map("response_json")
+  lastUpdated  DateTime @default(now()) @map("last_updated")
+
+  @@unique([routeKey, journeyDate])
+  @@index([routeKey, journeyDate])
+  @@map("search_cache")
+}
+
+// ---------------------------------------------
+// 18. ROUTE_STATS TABLE - Route search count metrics
+// ---------------------------------------------
+model RouteStats {
+  id              String   @id @default(uuid()) @db.Uuid
+  sourceCity      String   @map("source_city") @db.VarChar(100)
+  destinationCity String   @map("destination_city") @db.VarChar(100)
+  searchCount     Int      @default(1) @map("search_count")
+  lastSearched    DateTime @default(now()) @map("last_searched")
+
+  @@unique([sourceCity, destinationCity])
+  @@map("route_stats")
+}
+
+// ---------------------------------------------
+// 19. FARE_HISTORY TABLE - Storing fare tracking records
+// ---------------------------------------------
+model FareHistory {
+  id          String   @id @default(uuid()) @db.Uuid
+  provider    String   @db.VarChar(50)
+  route       String   @db.VarChar(255)
+  journeyDate DateTime @map("journey_date") @db.Date
+  price       Decimal  @db.Decimal(10, 2)
+  capturedAt  DateTime @default(now()) @map("captured_at")
+
+  @@map("fare_history")
+}
+
+// ---------------------------------------------
+// 20. AFFILIATE_CLICKS TABLE - Click telemetry logs
+// ---------------------------------------------
+model AffiliateClicks {
+  id        String   @id @default(uuid()) @db.Uuid
+  provider  String   @db.VarChar(50)
+  route     String   @db.VarChar(255)
+  clickedAt DateTime @default(now()) @map("clicked_at")
+  userAgent String?  @map("user_agent") @db.Text
+
+  @@map("affiliate_clicks")
+}
+
+
