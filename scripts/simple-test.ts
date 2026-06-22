@@ -8,19 +8,30 @@ async function test() {
 
   const page = await browser.newPage();
 
-  await page.goto(
-    'https://www.redbus.in',
-    {
-      waitUntil: 'load',
-      timeout: 60000
-    }
-  );
+  try {
 
-  console.log(page.title());
+    const response = await page.goto(
+      'https://www.redbus.in',
+      {
+        waitUntil: 'load',
+        timeout: 60000
+      }
+    );
+
+    console.log('Status:', response?.status());
+
+    console.log('Title:', await page.title());
+
+  } catch (err:any) {
+
+    console.log(err.message);
+
+  }
 
   await page.waitForTimeout(15000);
 
   await browser.close();
+
 }
 
 test();
