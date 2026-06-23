@@ -2,181 +2,117 @@ import { chromium } from 'playwright';
 
 async function run() {
 
-  const source = 'Delhi';
-  const destination = 'Lucknow';
-
   const browser = await chromium.launch({
     headless: false
   });
 
   const page = await browser.newPage();
 
-  try {
+  await page.goto(
+    'https://www.redbus.in'
+  );
 
-    await page.goto(
-      'https://www.redbus.in/',
-      {
-        waitUntil: 'load',
-        timeout: 60000
-      }
-    );
+  console.log('Homepage loaded');
 
-    console.log('Homepage loaded');
+  // FROM
 
-    await page.waitForTimeout(3000);
+  await page.locator(
+    'div'
+  ).filter({
+    hasText:/^From$/
+  }).nth(1).click();
 
-    // ---------------- FROM ----------------
+  await page.getByRole(
+    'combobox',
+    {name:'From'}
+  ).fill('delhi');
 
-    await page.locator('div')
-      .filter({ hasText: /^From$/ })
-      .nth(1)
-      .click();
+  await page.getByRole(
+    'option',
+    {name:'Delhi'}
+  ).first().click();
 
-    await page.getByRole(
-      'combobox',
-      { name: 'From' }
-    ).fill(source);
+  console.log('From selected');
 
-    await page.waitForTimeout(2000);
+  // TO
 
-    await page.getByRole(
-      'heading',
-      { name: source }
-    ).first().click();
+  await page.getByRole(
+    'combobox',
+    {name:'To'}
+  ).fill('lucknow');
 
-    console.log('From selected');
+  await page.getByRole(
+    'option',
+    {name:/Lucknow/i}
+  ).first().click();
 
-    console.log(
-      'After FROM:',
-      await page.url()
-    );
+  console.log('To selected');
 
-    // ---------------- TO ----------------
+  // DATE
 
-    await page.locator('div')
-      .filter({ hasText: /^To$/ })
-      .first()
-      .click();
-
-    await page.getByRole(
-      'combobox',
-      { name: 'To' }
-    ).fill(destination);
-
-    await page.waitForTimeout(2000);
-
-    await page.getByRole(
-      'heading',
-      { name: destination }
-    ).first().click();
-
-    console.log('To selected');
-
-    console.log(
-      'After TO:',
-      await page.url()
-    );
-
-    // ---------------- DATE ----------------
-
-    await page.getByRole(
-      'combobox',
-      {
-        name: 'Select Date of Journey.'
-      }
-    ).click();
-
-    const tomorrow = new Date();
-
-    tomorrow.setDate(
-      tomorrow.getDate() + 1
-    );
-
-    const day = tomorrow.getDate();
-
-    await page.locator(
-      `[aria-label*="${day}"]`
-    ).first().click();
-
-    console.log('Date selected');
-
-    console.log(
-      'After DATE:',
-      await page.url()
-    );
-
-    await page.waitForTimeout(3000);
-
-    // ---------------- SEARCH ----------------
-
-    try {
-
-      const searchBtn = page.getByRole(
-        'button',
-        {
-          name: /search/i
-        }
-      );
-
-      if (await searchBtn.isVisible()) {
-
-        await searchBtn.click();
-
-        console.log(
-          'Search clicked'
-        );
-
-      }
-
+  await page.getByRole(
+    'combobox',
+    {
+      name:'Select Date of Journey.'
     }
+  ).click();
 
-    catch(e){
+  await page.waitForTimeout(
+    2000
+  );
 
-      console.log(
-        'Search button not found, maybe auto-search'
-      );
+  const tomorrow = new Date();
 
+  tomorrow.setDate(
+    tomorrow.getDate()+1
+  );
+
+  const day =
+    tomorrow.getDate();
+
+  await page.locator(
+    `button[aria-label*="${day}"]`
+  ).first().click();
+
+  console.log(
+    'Date selected'
+  );
+
+  // SEARCH
+
+  await page.waitForTimeout(
+    1000
+  );
+
+  await page.getByRole(
+    'button',
+    {
+      name:/Search buses/i
     }
+  ).click();
 
-    // ---------------- WAIT ----------------
+  console.log(
+    'Search clicked'
+  );
 
-    await page.waitForTimeout(
-      10000
-    );
+  await page.waitForLoadState(
+    'networkidle'
+  );
 
-    console.log(
-      'Final URL:',
-      await page.url()
-    );
+  console.log(
+    page.url()
+  );
 
-    await page.screenshot({
+  await page.screenshot({
+    path:'results.png',
+    fullPage:true
+  });
 
-      path:'results.png',
-
-      fullPage:true
-
-    });
-
-    console.log(
-      'results.png created'
-    );
-
-    // Keep browser open
-
-    await page.waitForTimeout(
-      120000
-    );
-
-  }
-
-  catch(err:any){
-
-    console.log(err);
-
-  }
+  await page.waitForTimeout(
+    10000
+  );
 
   await browser.close();
-
 }
 
 run();
