@@ -1,10 +1,8 @@
 import { chromium } from 'playwright';
-import fs from 'fs';
 
 async function run() {
 
   const source = 'Delhi';
-
   const destination = 'Lucknow';
 
   const browser = await chromium.launch({
@@ -25,7 +23,9 @@ async function run() {
 
     console.log('Homepage loaded');
 
-    // FROM
+    await page.waitForTimeout(3000);
+
+    // ---------------- FROM ----------------
 
     await page.locator('div')
       .filter({ hasText: /^From$/ })
@@ -34,21 +34,24 @@ async function run() {
 
     await page.getByRole(
       'combobox',
-      {
-        name: 'From'
-      }
+      { name: 'From' }
     ).fill(source);
+
+    await page.waitForTimeout(2000);
 
     await page.getByRole(
       'heading',
-      {
-        name: source
-      }
+      { name: source }
     ).first().click();
 
     console.log('From selected');
 
-    // TO
+    console.log(
+      'After FROM:',
+      await page.url()
+    );
+
+    // ---------------- TO ----------------
 
     await page.locator('div')
       .filter({ hasText: /^To$/ })
@@ -57,21 +60,24 @@ async function run() {
 
     await page.getByRole(
       'combobox',
-      {
-        name: 'To'
-      }
+      { name: 'To' }
     ).fill(destination);
+
+    await page.waitForTimeout(2000);
 
     await page.getByRole(
       'heading',
-      {
-        name: destination
-      }
+      { name: destination }
     ).first().click();
 
     console.log('To selected');
 
-    // DATE
+    console.log(
+      'After TO:',
+      await page.url()
+    );
+
+    // ---------------- DATE ----------------
 
     await page.getByRole(
       'combobox',
@@ -94,71 +100,71 @@ async function run() {
 
     console.log('Date selected');
 
-    // SEARCH
+    console.log(
+      'After DATE:',
+      await page.url()
+    );
 
-    await page.getByRole(
-      'button',
-      {
-        name: 'Search buses'
+    await page.waitForTimeout(3000);
+
+    // ---------------- SEARCH ----------------
+
+    try {
+
+      const searchBtn = page.getByRole(
+        'button',
+        {
+          name: /search/i
+        }
+      );
+
+      if (await searchBtn.isVisible()) {
+
+        await searchBtn.click();
+
+        console.log(
+          'Search clicked'
+        );
+
       }
-    ).click();
 
-    console.log('Search clicked');
+    }
+
+    catch(e){
+
+      console.log(
+        'Search button not found, maybe auto-search'
+      );
+
+    }
+
+    // ---------------- WAIT ----------------
 
     await page.waitForTimeout(
       10000
     );
 
     console.log(
+      'Final URL:',
       await page.url()
     );
 
     await page.screenshot({
 
-      path: 'results.png',
+      path:'results.png',
 
-      fullPage: true
-
-    });
-
-    // EXTRACT FIRST 10 BUSES
-
-    const buses = await page.evaluate(() => {
-
-      const rows = document.querySelectorAll(
-        '.bus-item,.row-sec'
-      );
-
-      return Array.from(rows)
-
-      .slice(0,10)
-
-      .map((row:any) => ({
-
-        text: row.innerText
-
-      }));
+      fullPage:true
 
     });
-
-    fs.writeFileSync(
-
-      'redbus-output.json',
-
-      JSON.stringify(
-
-        buses,
-
-        null,
-
-        2
-
-      )
-
-    );
 
     console.log(
-      `Extracted ${buses.length} buses`
+      'results.png created'
+    );
+
+    // Keep browser open
+
+    await page.waitForTimeout(
+      120000
     );
 
   }
@@ -168,10 +174,6 @@ async function run() {
     console.log(err);
 
   }
-
-  await page.waitForTimeout(
-    5000
-  );
 
   await browser.close();
 
