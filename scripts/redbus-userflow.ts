@@ -3,104 +3,30 @@ import { chromium } from 'playwright';
 async function run() {
 
   const browser = await chromium.launch({
-    headless: false
+    headless:false
   });
 
   const page = await browser.newPage();
 
+  const url =
+'https://www.redbus.in/bus-tickets/delhi-to-jaipur?fromCityId=733&fromCityName=Delhi&toCityId=807&toCityName=Jaipur&onward=23-Jun-2026&doj=23-Jun-2026&ref=search';
+
+  console.log('Opening route');
+
   await page.goto(
-    'https://www.redbus.in'
-  );
-
-  console.log('Homepage loaded');
-
-  // FROM
-
-  await page.locator(
-    'div'
-  ).filter({
-    hasText:/^From$/
-  }).nth(1).click();
-
-  await page.getByRole(
-    'combobox',
-    {name:'From'}
-  ).fill('delhi');
-
-  await page.getByRole(
-    'option',
-    {name:'Delhi'}
-  ).first().click();
-
-  console.log('From selected');
-
-  // TO
-
-  await page.getByRole(
-    'combobox',
-    {name:'To'}
-  ).fill('lucknow');
-
-  await page.getByRole(
-    'option',
-    {name:/Lucknow/i}
-  ).first().click();
-
-  console.log('To selected');
-
-  // DATE
-
-  await page.getByRole(
-    'combobox',
+    url,
     {
-      name:'Select Date of Journey.'
+      waitUntil:'networkidle',
+      timeout:60000
     }
-  ).click();
-
-  await page.waitForTimeout(
-    2000
-  );
-
-  const tomorrow = new Date();
-
-  tomorrow.setDate(
-    tomorrow.getDate()+1
-  );
-
-  const day =
-    tomorrow.getDate();
-
-  await page.locator(
-    `button[aria-label*="${day}"]`
-  ).first().click();
-
-  console.log(
-    'Date selected'
-  );
-
-  // SEARCH
-
-  await page.waitForTimeout(
-    1000
-  );
-
-  await page.getByRole(
-    'button',
-    {
-      name:/Search buses/i
-    }
-  ).click();
-
-  console.log(
-    'Search clicked'
-  );
-
-  await page.waitForLoadState(
-    'networkidle'
   );
 
   console.log(
     page.url()
+  );
+
+  await page.waitForTimeout(
+    5000
   );
 
   await page.screenshot({
@@ -108,11 +34,95 @@ async function run() {
     fullPage:true
   });
 
+  const selectors=[
+
+    '.bus-item',
+
+    '.row-sec',
+
+    '[class*=row-sec]',
+
+    '[class*=bus-item]'
+
+  ];
+
+  let selector='';
+
+  for(const s of selectors){
+
+    const count=
+      await page.locator(s).count();
+
+    console.log(
+      s,
+      count
+    );
+
+    if(count>0){
+
+      selector=s;
+
+      break;
+    }
+  }
+
+  if(!selector){
+
+    console.log(
+      'No buses found'
+    );
+
+    await browser.close();
+
+    return;
+  }
+
+  const cards=
+    await page.locator(
+      selector
+    ).all();
+
+  console.log(
+    'Buses:',
+    cards.length
+  );
+
+  const limit=
+    Math.min(
+      5,
+      cards.length
+    );
+
+  for(
+
+    let i=0;
+
+    i<limit;
+
+    i++
+
+  ){
+
+    const text=
+
+      await cards[i]
+      .innerText();
+
+    console.log(
+      '\n-----------'
+    );
+
+    console.log(
+      text
+    );
+  }
+
   await page.waitForTimeout(
     10000
   );
 
   await browser.close();
+
 }
 
 run();
