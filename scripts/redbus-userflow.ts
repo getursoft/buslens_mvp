@@ -2,6 +2,9 @@ import { chromium } from 'playwright';
 
 async function run() {
 
+  const source = 'Delhi';
+  const destination = 'Jaipur';
+
   const browser = await chromium.launch({
     headless: false
   });
@@ -20,74 +23,82 @@ async function run() {
 
     console.log('Homepage loaded');
 
-    // FROM
+    await page.waitForTimeout(3000);
 
-    await page.locator('div')
-      .filter({ hasText: /^From$/ })
-      .nth(1)
-      .click();
+    // Close popup if present
 
-    await page.getByRole(
-      'heading',
-      { name: 'Kashmiri Gate' }
-    ).click();
+    try {
+
+      const closeBtn = page.locator(
+        '[aria-label="Close"]'
+      );
+
+      if (await closeBtn.isVisible()) {
+
+        await closeBtn.click();
+
+      }
+
+    } catch (_) {}
+
+    // ---------------- FROM ----------------
+
+    await page.keyboard.type(source);
+
+    await page.waitForTimeout(2000);
+
+    await page.keyboard.press('ArrowDown');
+
+    await page.keyboard.press('Enter');
 
     console.log('From selected');
 
-    // TO
+    // ---------------- TO ----------------
 
-    await page.getByRole(
-      'heading',
-      { name: 'Jaipur (Rajasthan)' }
-    ).click();
+    await page.keyboard.type(destination);
+
+    await page.waitForTimeout(2000);
+
+    await page.keyboard.press('ArrowDown');
+
+    await page.keyboard.press('Enter');
 
     console.log('To selected');
 
-    // DATE
+    // ---------------- SEARCH ----------------
 
-    await page.getByRole(
-      'combobox',
-      { name: 'Select Date of Journey.' }
-    ).click();
-
-    const tomorrow = new Date();
-
-    tomorrow.setDate(
-      tomorrow.getDate() + 1
-    );
-
-    const day = tomorrow.getDate();
-
-    await page.locator(
-      `button[aria-label*="${day}"]`
-    ).first().click();
-
-    console.log('Date selected');
-
-    // SEARCH
-
-    await page.getByRole(
+    const searchBtn = page.getByRole(
       'button',
       {
-        name: 'Search buses'
+        name: /search buses/i
       }
-    ).click();
+    );
+
+    if (await searchBtn.isVisible()) {
+
+      await searchBtn.click();
+
+    }
 
     console.log('Search clicked');
 
-    // Wait results
+    await page.waitForTimeout(10000);
 
-    await page.waitForTimeout(
-      10000
+    console.log(
+      'Current URL:',
+      await page.url()
     );
 
     await page.screenshot({
+
       path: 'results.png',
+
       fullPage: true
+
     });
 
     console.log(
-      'Results page loaded'
+      'Results screenshot saved'
     );
 
   }
@@ -98,9 +109,7 @@ async function run() {
 
   }
 
-  await page.waitForTimeout(
-    10000
-  );
+  await page.waitForTimeout(5000);
 
   await browser.close();
 
