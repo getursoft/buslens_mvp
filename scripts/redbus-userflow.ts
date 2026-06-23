@@ -1,9 +1,11 @@
 import { chromium } from 'playwright';
+import fs from 'fs';
 
 async function run() {
 
   const source = 'Delhi';
-  const destination = 'Jaipur';
+
+  const destination = 'Lucknow';
 
   const browser = await chromium.launch({
     headless: false
@@ -14,7 +16,7 @@ async function run() {
   try {
 
     await page.goto(
-      'https://www.redbus.in',
+      'https://www.redbus.in/',
       {
         waitUntil: 'load',
         timeout: 60000
@@ -23,69 +25,91 @@ async function run() {
 
     console.log('Homepage loaded');
 
-    await page.waitForTimeout(3000);
+    // FROM
 
-    // Close popup if present
+    await page.locator('div')
+      .filter({ hasText: /^From$/ })
+      .nth(1)
+      .click();
 
-    try {
-
-      const closeBtn = page.locator(
-        '[aria-label="Close"]'
-      );
-
-      if (await closeBtn.isVisible()) {
-
-        await closeBtn.click();
-
+    await page.getByRole(
+      'combobox',
+      {
+        name: 'From'
       }
+    ).fill(source);
 
-    } catch (_) {}
-
-    // ---------------- FROM ----------------
-
-    await page.keyboard.type(source);
-
-    await page.waitForTimeout(2000);
-
-    await page.keyboard.press('ArrowDown');
-
-    await page.keyboard.press('Enter');
+    await page.getByRole(
+      'heading',
+      {
+        name: source
+      }
+    ).first().click();
 
     console.log('From selected');
 
-    // ---------------- TO ----------------
+    // TO
 
-    await page.keyboard.type(destination);
+    await page.locator('div')
+      .filter({ hasText: /^To$/ })
+      .first()
+      .click();
 
-    await page.waitForTimeout(2000);
+    await page.getByRole(
+      'combobox',
+      {
+        name: 'To'
+      }
+    ).fill(destination);
 
-    await page.keyboard.press('ArrowDown');
-
-    await page.keyboard.press('Enter');
+    await page.getByRole(
+      'heading',
+      {
+        name: destination
+      }
+    ).first().click();
 
     console.log('To selected');
 
-    // ---------------- SEARCH ----------------
+    // DATE
 
-    const searchBtn = page.getByRole(
-      'button',
+    await page.getByRole(
+      'combobox',
       {
-        name: /search buses/i
+        name: 'Select Date of Journey.'
       }
+    ).click();
+
+    const tomorrow = new Date();
+
+    tomorrow.setDate(
+      tomorrow.getDate() + 1
     );
 
-    if (await searchBtn.isVisible()) {
+    const day = tomorrow.getDate();
 
-      await searchBtn.click();
+    await page.locator(
+      `[aria-label*="${day}"]`
+    ).first().click();
 
-    }
+    console.log('Date selected');
+
+    // SEARCH
+
+    await page.getByRole(
+      'button',
+      {
+        name: 'Search buses'
+      }
+    ).click();
 
     console.log('Search clicked');
 
-    await page.waitForTimeout(10000);
+    await page.waitForTimeout(
+      10000
+    );
 
     console.log(
-      'Current URL:',
       await page.url()
     );
 
@@ -97,8 +121,44 @@ async function run() {
 
     });
 
+    // EXTRACT FIRST 10 BUSES
+
+    const buses = await page.evaluate(() => {
+
+      const rows = document.querySelectorAll(
+        '.bus-item,.row-sec'
+      );
+
+      return Array.from(rows)
+
+      .slice(0,10)
+
+      .map((row:any) => ({
+
+        text: row.innerText
+
+      }));
+
+    });
+
+    fs.writeFileSync(
+
+      'redbus-output.json',
+
+      JSON.stringify(
+
+        buses,
+
+        null,
+
+        2
+
+      )
+
+    );
+
     console.log(
-      'Results screenshot saved'
+      `Extracted ${buses.length} buses`
     );
 
   }
@@ -109,7 +169,9 @@ async function run() {
 
   }
 
-  await page.waitForTimeout(5000);
+  await page.waitForTimeout(
+    5000
+  );
 
   await browser.close();
 
